@@ -4,9 +4,6 @@ package main
 import (
     "log"
     "net/http"
-    "os"
-    "encoding/json"
-    "io"
     "path/filepath"
 
     "github.com/gorilla/mux"
@@ -40,28 +37,26 @@ func (a *App) uploadFile(w http.ResponseWriter, r *http.Request) {
     }
     defer file.Close()
 
-    uniqueFolder := filepath.Join(a.RootFolder, a.getUniqueFolder())
-    // Create a folder with unique name for this file
-    if err := os.Mkdir(uniqueFolder, os.ModePerm); err != nil {
-        respondWithError(w, http.StatusInternalServerError, err.Error())
+    folder, errUpload := uploadAndCreateFolder(file, header.Filename, a.RootFolder)
+    if errUpload != nil {
+        respondWithError(w, http.StatusBadRequest, errUpload.Error())
         return
     }
 
-    // unzip these file to that folder
-	f, errOpenFile := os.OpenFile(filepath.Join(uniqueFolder, header.Filename), os.O_WRONLY | os.O_CREATE, 0666)
-	if errOpenFile != nil {
-        respondWithError(w, http.StatusInternalServerError, errOpenFile.Error())
-	   return
-	}
-	defer f.Close()
+    filePath := filepath.Join(folder, header.Filename)
+    errUnzip := unzipFile(filePath, folder)
+    if errUnzip != nil {
+        respondWithError(w, http.StatusBadRequest, errUnzip.Error())
+        return
+    }
 
-	io.Copy(f, file)
+    errRemove := removeFile(filePath)
+    if errRemove != nil {
+        respondWithError(w, http.StatusBadRequest, errRemove.Error())
+        return    	
+    }
 
     respondWithJSON(w, http.StatusCreated, nil)
-}
-
-func (a *App) getUniqueFolder() string {
-	return "folder/"; // some way to retrieve a unique folder to the user
 }
 
 func (a *App) getDanfes(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +71,11 @@ func (a *App) getDanfes(w http.ResponseWriter, r *http.Request) {
 		filter[string(key)] = r.Form.Get(key)
 	}
 
-    folder := a.getUniqueFolder()
+    folder, errFolder := getUniqueString()
+    if errFolder != nil {
+        respondWithError(w, http.StatusInternalServerError, errFolder.Error())
+        return
+    }
 
     danfes, err := getDanfes(a.RootFolder + folder, filter)
     if err != nil {
@@ -85,16 +84,4 @@ func (a *App) getDanfes(w http.ResponseWriter, r *http.Request) {
     }
 
     respondWithJSON(w, http.StatusOK, danfes)
-}
-
-func respondWithError(w http.ResponseWriter, code int, message string) {
-    respondWithJSON(w, code, map[string]string{"error": message})
-}
-
-func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-    response, _ := json.Marshal(payload)
-
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(code)
-    w.Write(response)
 }
