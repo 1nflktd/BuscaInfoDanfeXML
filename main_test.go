@@ -7,6 +7,10 @@ import (
     "golang.org/x/sys/unix"
     "net/http"
     "net/http/httptest"
+    "mime/multipart"
+    "bytes"
+    "io"
+    "path/filepath"
 
     "."
 )
@@ -50,7 +54,7 @@ func checkResponseCode(t *testing.T, expected, actual int) {
     }
 }
 
-func TestRequestWithoutFolder(t *testing.T) {
+func TestGetDanfesWithoutFolder(t *testing.T) {
     clearFolder()
 
     req, _ := http.NewRequest("GET", "/danfes", nil)
@@ -59,11 +63,41 @@ func TestRequestWithoutFolder(t *testing.T) {
     checkResponseCode(t, http.StatusNotFound, response.Code)
 }
 
-func TestRequestInvalidFolder(t *testing.T) {
+func TestGetDanfesInvalidFolder(t *testing.T) {
     clearFolder()
 
     req, _ := http.NewRequest("GET", "/danfes/123", nil)
     response := executeRequest(req)
 
     checkResponseCode(t, http.StatusNotFound, response.Code)
+}
+
+func TestPostFile(t *testing.T) {
+    clearFolder()
+
+    file := "/home/henrique/Documentos/BuscaInfoDanfeXML/testFiles/xml_nfe_2017-06-16-21-37-50.zip"
+
+    var buf bytes.Buffer
+    w := multipart.NewWriter(&buf)
+    f, err := os.Open(file)
+    if err != nil {
+        t.Errorf("Error opening file: %v\n", err.Error()) 
+    }
+    defer f.Close()
+
+    fw, err := w.CreateFormFile("file", filepath.Base(file))
+    if err != nil {
+        t.Errorf("Error creating form file: %v\n", err.Error())
+    }
+
+    if _, err = io.Copy(fw, f); err != nil {
+        t.Errorf("Error copying file: %v\n", err.Error()) 
+    }
+    w.Close()
+
+    req, _ := http.NewRequest("POST", "/file", &buf)
+    req.Header.Set("Content-Type", w.FormDataContentType())
+    response := executeRequest(req)
+
+    checkResponseCode(t, http.StatusCreated, response.Code)
 }

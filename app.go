@@ -25,11 +25,11 @@ func (a *App) Run(addr string) {
 }
 
 func (a *App) initializeRoutes() {
-    a.Router.HandleFunc("/uploadFile", a.uploadFile).Methods("POST")
+    a.Router.HandleFunc("/file", a.postFile).Methods("POST")
     a.Router.HandleFunc("/danfes/{folder}", a.getDanfes).Methods("GET")
 }
 
-func (a *App) uploadFile(w http.ResponseWriter, r *http.Request) {
+func (a *App) postFile(w http.ResponseWriter, r *http.Request) {
     file, header, errFormFile := r.FormFile("file")
     if errFormFile != nil {
         respondWithError(w, http.StatusBadRequest, "Invalid request payload: " + errFormFile.Error())
