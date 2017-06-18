@@ -113,6 +113,9 @@ func getFile(src string) ([]byte, error) {
 }
 
 func isDirectory(src string) (bool, error) {
-    fileInfo, err := os.Stat(src)
-    return fileInfo.IsDir(), err
+	fileInfo, err := os.Stat(src)
+	if err == nil {
+	    return fileInfo.IsDir(), err
+	}
+	return false, err
 }

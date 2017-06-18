@@ -39,20 +39,20 @@ func (a *App) uploadFile(w http.ResponseWriter, r *http.Request) {
 
     folder, errUpload := uploadAndCreateFolder(file, header.Filename, a.RootFolder)
     if errUpload != nil {
-        respondWithError(w, http.StatusBadRequest, "Error uploading file: " + errUpload.Error())
+        respondWithError(w, http.StatusInternalServerError, "Error uploading file: " + errUpload.Error())
         return
     }
 
     filePath := filepath.Join(folder, header.Filename)
     errUnzip := unzipFile(filePath, folder)
     if errUnzip != nil {
-        respondWithError(w, http.StatusBadRequest, "Error unziping file: " + errUnzip.Error())
+        respondWithError(w, http.StatusInternalServerError, "Error unziping file: " + errUnzip.Error())
         return
     }
 
     errRemove := removeFile(filePath)
     if errRemove != nil {
-        respondWithError(w, http.StatusBadRequest, "Error removing file: " + errRemove.Error())
+        respondWithError(w, http.StatusInternalServerError, "Error removing file: " + errRemove.Error())
         return
     }
 
@@ -64,7 +64,7 @@ func (a *App) getDanfes(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	folder := vars["folder"]
 	if folder == "" {
-        respondWithError(w, http.StatusInternalServerError, "Folder not found in request.")
+        respondWithError(w, http.StatusBadRequest, "Folder not found in request.")
         return
 	}
 
@@ -79,6 +79,13 @@ func (a *App) getDanfes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	folderPath := filepath.Join(a.RootFolder, folder)
+
+	isDir, err := isDirectory(folder)
+	if err != nil || !isDir {
+        respondWithError(w, http.StatusNotFound, "Folder not found")
+        return
+	}
+	
     danfes, err := getDanfes(folderPath, filter)
     if err != nil {
         respondWithError(w, http.StatusInternalServerError, "Error getting danfes: " + err.Error())
