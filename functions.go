@@ -7,6 +7,7 @@ import (
     "path/filepath"
     "os"
     "io"
+    "io/ioutil"
     "mime/multipart"
 )
 
@@ -105,4 +106,13 @@ func unzipFile(src, dest string) error {
 
 func removeFile(src string) error {
 	return os.Remove(src)
+}
+
+func getFile(src string) ([]byte, error) {
+	return ioutil.ReadFile(src)
+}
+
+func isDirectory(src string) (bool, error) {
+    fileInfo, err := os.Stat(src)
+    return fileInfo.IsDir(), err
 }
