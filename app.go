@@ -80,7 +80,7 @@ func (a *App) postFile(w http.ResponseWriter, r *http.Request) {
     }
 
     filePath := filepath.Join(folder, header.Filename)
-    errUnzip := unzipFile(filePath, folder)
+    retMapUnzipFile, errUnzip := unzipFile(filePath, folder)
     if errUnzip != nil {
     	log.Println("postFile, errUnzip: " + errUnzip.Error())
         respondWithError(w, http.StatusInternalServerError, "Error unziping file")
@@ -94,9 +94,7 @@ func (a *App) postFile(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // return the total files
-
-    respondWithJSON(w, http.StatusCreated, nil)
+    respondWithJSON(w, http.StatusCreated, retMapUnzipFile)
 }
 
 func (a *App) importFile(w http.ResponseWriter, r *http.Request) {

@@ -9,6 +9,8 @@ import (
     "io"
     "io/ioutil"
     "mime/multipart"
+    "errors"
+    "strconv"
 )
 
 func getUniqueString() (string, error) {
@@ -20,7 +22,7 @@ func getUniqueString() (string, error) {
 		return "", err
 	}
 
-	return base64.URLEncoding.EncodeToString(b), err
+	return base64.StdEncoding.EncodeToString(b), err
 }
 
 func uploadAndCreateFolder(file multipart.File, filename, rootFolder string) (string, error) {
@@ -45,10 +47,18 @@ func uploadAndCreateFolder(file multipart.File, filename, rootFolder string) (st
 	return uniqueFolder, nil
 }
 
-func unzipFile(src, dest string) error {
+func encodeFileName(number int) string {
+    return base64.StdEncoding.EncodeToString([]byte(strconv.Itoa(number)))
+}
+
+func decodeFileName(hashBase64 string) ([]byte, error) {
+    return base64.StdEncoding.DecodeString(hashBase64)
+}
+
+func unzipFile(src, dest string) (map[string]interface{}, error) {
     r, err := zip.OpenReader(src)
     if err != nil {
-        return err
+        return nil, err
     }
     defer func() {
         if err := r.Close(); err != nil {
@@ -58,6 +68,7 @@ func unzipFile(src, dest string) error {
 
     os.MkdirAll(dest, 0755)
 
+    filesFound := 0
     // Closure to address file descriptors issue with all the deferred .Close() methods
     extractAndWriteFile := func(f *zip.File) error {
         rc, err := f.Open()
@@ -75,7 +86,12 @@ func unzipFile(src, dest string) error {
         if f.FileInfo().IsDir() {
             os.MkdirAll(path, f.Mode())
         } else {
-            os.MkdirAll(filepath.Dir(path), f.Mode())
+            if filepath.Ext(path) != ".xml" {
+                return errors.New("Not XML file")
+            }
+
+            dir := filepath.Dir(path)
+            os.MkdirAll(dir, f.Mode())
             f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
             if err != nil {
                 return err
@@ -90,6 +106,16 @@ func unzipFile(src, dest string) error {
             if err != nil {
                 return err
             }
+
+            // change name
+            newName := encodeFileName(filesFound)
+            newPath := filepath.Join(dir, newName + ".xml")
+            errRename := os.Rename(path, newPath)
+            if errRename != nil {
+                return errRename
+            }
+
+            filesFound++
         }
         return nil
     }
@@ -97,11 +123,13 @@ func unzipFile(src, dest string) error {
     for _, f := range r.File {
         err := extractAndWriteFile(f)
         if err != nil {
-            return err
+            return nil, err
         }
     }
 
-    return nil
+    ret := make(map[string]interface{})
+    ret["total"] = filesFound
+    return ret, nil
 }
 
 func removeFile(src string) error {
