@@ -18,11 +18,11 @@ type User struct {
 
 type App struct {
     Router *mux.Router
-    RootFolder string    
+    RootFolderPath string    
 }
 
-func (a *App) Initialize(rootFolder string) {
-	a.RootFolder = rootFolder
+func (a *App) Initialize(rootFolderPath string) {
+	a.RootFolderPath = rootFolderPath
     a.Router = mux.NewRouter()
     a.initializeRoutes()
 }
@@ -72,22 +72,25 @@ func (a *App) postFile(w http.ResponseWriter, r *http.Request) {
     }
     defer file.Close()
 
-    folder, errUpload := uploadAndCreateFolder(file, header.Filename, a.RootFolder)
+    folder := &Folder{RootFolderPath: a.RootFolderPath}
+    folder.Initialize()
+    errUpload := folder.upload(file, header.Filename)
     if errUpload != nil {
     	log.Println("postFile, errUpload: " + errUpload.Error())
         respondWithError(w, http.StatusInternalServerError, "Error uploading file")
         return
     }
 
-    filePath := filepath.Join(folder, header.Filename)
-    retMapUnzipFile, errUnzip := unzipFile(filePath, folder)
+    zipFile := &ZipFile{Folder: folder, Name: header.Filename}
+    zipFile.Initialize()
+    retMapUnzipFile, errUnzip := zipFile.unzip()
     if errUnzip != nil {
     	log.Println("postFile, errUnzip: " + errUnzip.Error())
         respondWithError(w, http.StatusInternalServerError, "Error unziping file")
         return
     }
 
-    errRemove := removeFile(filePath)
+    errRemove := zipFile.remove()
     if errRemove != nil {
     	log.Println("postFile, errUnzip: " + errRemove.Error())
         respondWithError(w, http.StatusInternalServerError, "Error removing file")
@@ -128,7 +131,7 @@ func (a *App) getDanfes(w http.ResponseWriter, r *http.Request) {
 		filter[string(key)] = r.Form.Get(key)
 	}
 
-	folderPath := filepath.Join(a.RootFolder, folder)
+	folderPath := filepath.Join(a.RootFolderPath, folder)
 
 	isDir, err := isDirectory(folder)
 	if err != nil || !isDir {

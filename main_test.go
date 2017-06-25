@@ -19,7 +19,7 @@ var a main.App
 
 func TestMain(m *testing.M) {
     a = main.App{}
-    a.Initialize(os.Getenv("APP_ROOT_FOLDER"))
+    a.Initialize(os.Getenv("APP_ROOT_FOLDER_PATH"))
 
     ensurePathExistsAndWritable()
 
@@ -31,14 +31,14 @@ func TestMain(m *testing.M) {
 }
 
 func ensurePathExistsAndWritable() {
-    if err := unix.Access(a.RootFolder, unix.W_OK); err != nil {
+    if err := unix.Access(a.RootFolderPath, unix.W_OK); err != nil {
         log.Fatal(err)
     }
 }
 
 func clearFolder() {
-    os.RemoveAll(a.RootFolder)
-    os.MkdirAll(a.RootFolder, 0755)
+    os.RemoveAll(a.RootFolderPath)
+    os.MkdirAll(a.RootFolderPath, 0755)
 }
 
 func executeRequest(req *http.Request) *httptest.ResponseRecorder {
