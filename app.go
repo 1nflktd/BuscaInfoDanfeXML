@@ -10,21 +10,33 @@ import (
     "github.com/gorilla/mux"
     "github.com/alexedwards/scs/engine/memstore"
     "github.com/alexedwards/scs/session"
+    "github.com/asdine/storm"
 )
 
 type User struct {
-	Folder string
+    ID int `storm:"increment"`
+	Folder string `storm:"unique"`
 }
 
 type App struct {
     Router *mux.Router
+    DB *storm.DB
     RootFolderPath string    
 }
 
 func (a *App) Initialize(rootFolderPath string) {
+    var err error
+    a.DB, err = storm.Open("my.db")
+    if err != nil {
+        log.Fatal(err)
+    }
 	a.RootFolderPath = rootFolderPath
     a.Router = mux.NewRouter()
     a.initializeRoutes()
+}
+
+func (a *App) Close() {
+    a.DB.Close()
 }
 
 func (a *App) Run(addr string) {
@@ -48,22 +60,32 @@ func sessionError(w http.ResponseWriter, r *http.Request, err error) {
 }
 
 func (a *App) initializeRoutes() {
-    a.Router.HandleFunc("/authenticate", a.authenticate).Methods("GET")
-    a.Router.HandleFunc("/file", a.postFile).Methods("POST")
-    a.Router.HandleFunc("/import/{id:[0-9]+}", a.importFile).Methods("GET")
-    a.Router.HandleFunc("/danfes/{folder}", a.getDanfes).Methods("GET")
+    a.Router.HandleFunc("/authenticate", a.Authenticate).Methods("GET")
+    a.Router.HandleFunc("/file", a.PostFile).Methods("POST")
+    a.Router.HandleFunc("/import/{id:[0-9]+}", a.ImportFile).Methods("GET")
+    a.Router.HandleFunc("/danfes/{folder}", a.GetDanfes).Methods("GET")
 }
 
-func (a *App) authenticate(w http.ResponseWriter, r *http.Request) {
-	user := &User{}
-	err := session.PutObject(r, "user", user)
-	if err != nil {
-		log.Println(err.Error())
-		respondWithError(w, http.StatusInternalServerError, "Sorry the application encountered an error")
-	}	
+func (a *App) Authenticate(w http.ResponseWriter, r *http.Request) {
+	user := User{}
+
+    // save user to database
+    if err := a.DB.Save(&user); err != nil {
+        log.Println(err.Error())
+        respondWithError(w, http.StatusInternalServerError, "Sorry the application encountered an error")
+    }
+    
+    // save user to session
+    err := session.PutObject(r, "user", &user)
+    if err != nil {
+        log.Println(err.Error())
+        respondWithError(w, http.StatusInternalServerError, "Sorry the application encountered an error")
+    }
+    
+    respondWithJSON(w, http.StatusOK, nil);
 }
 
-func (a *App) postFile(w http.ResponseWriter, r *http.Request) {
+func (a *App) PostFile(w http.ResponseWriter, r *http.Request) {
     file, header, errFormFile := r.FormFile("file")
     if errFormFile != nil {
     	log.Println("postFile, errFormFile: " + errFormFile.Error())
@@ -100,9 +122,9 @@ func (a *App) postFile(w http.ResponseWriter, r *http.Request) {
     respondWithJSON(w, http.StatusCreated, retMapUnzipFile)
 }
 
-func (a *App) importFile(w http.ResponseWriter, r *http.Request) {
+func (a *App) ImportFile(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	_, err := strconv.Atoi(vars["id"]) // id
+	_, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		log.Println("importFile: " + err.Error())
         respondWithError(w, http.StatusBadRequest, "Invalid parameter")
@@ -112,7 +134,7 @@ func (a *App) importFile(w http.ResponseWriter, r *http.Request) {
 	// import file to db
 }
 
-func (a *App) getDanfes(w http.ResponseWriter, r *http.Request) {
+func (a *App) GetDanfes(w http.ResponseWriter, r *http.Request) {
 	// filter will be an array, ie. nome=produto 1&cfop=x505
 	vars := mux.Vars(r)
 	folder := vars["folder"]
