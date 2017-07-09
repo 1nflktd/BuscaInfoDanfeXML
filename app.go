@@ -24,9 +24,9 @@ type App struct {
     RootFolderPath string    
 }
 
-func (a *App) Initialize(rootFolderPath string) {
+func (a *App) Initialize(rootFolderPath string, dbName string) {
     var err error
-    a.DB, err = storm.Open("my.db")
+    a.DB, err = storm.Open(dbName)
     if err != nil {
         log.Fatal(err)
     }

@@ -34,7 +34,7 @@ type User struct {
 
 func TestMain(m *testing.M) {
     a = main.App{}
-    a.Initialize(os.Getenv("APP_ROOT_FOLDER_PATH"))
+    a.Initialize(os.Getenv("APP_ROOT_FOLDER_PATH"), os.Getenv("APP_DATABASE_NAME"))
     defer a.Close()
 
     gob.Register(User{})
@@ -96,12 +96,13 @@ func TestAuthenticate(t *testing.T) {
     req, _ := http.NewRequest("GET", "/authenticate", nil)
     response := executeRequest(req, h)
 
+    checkResponseCode(t, http.StatusOK, response.Code)
+
     cookie := response.Header().Get("Set-Cookie")
+    cookie = extractTokenFromCookie(cookie)
     if cookie == "" {
         t.Errorf("Error authenticating, fail to generate cookie\n")
     }
-
-    checkResponseCode(t, http.StatusOK, response.Code)
 }
 
 func TestGetDanfesWithoutFolder(t *testing.T) {
