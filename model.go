@@ -46,3 +46,18 @@ func getDanfes(folder string, filters map[string]string) ([]Danfe, error) {
 
 	return danfes, nil
 }
+
+func getDanfe(path string) (*Danfe, error) {
+	xmlDanfe, err := getFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	danfe := &Danfe{}
+	err = xml.Unmarshal(xmlDanfe, danfe)
+	if err != nil {
+		return nil, err
+	}
+
+	return danfe, nil
+}

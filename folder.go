@@ -15,6 +15,10 @@ type Folder struct {
 
 func (f *Folder) Initialize() {
     f.Name = generateUniqueString(32)
+    f.genPath()
+}
+
+func (f *Folder) genPath() {
     f.Path = filepath.Join(f.RootFolderPath, f.Name)
 }
 

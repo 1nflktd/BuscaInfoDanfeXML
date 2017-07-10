@@ -15,7 +15,7 @@ import (
 
 type User struct {
     ID int `storm:"increment"`
-	Folder string `storm:"unique"`
+	FolderName string `storm:"unique"`
 }
 
 type App struct {
@@ -121,7 +121,7 @@ func (a *App) PostFile(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    newUser := &User{ID: user.ID, Folder: folder.Name}
+    newUser := &User{ID: user.ID, FolderName: folder.Name}
 
     a.DB.Update(newUser)
 
@@ -151,6 +151,13 @@ func (a *App) ImportFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// import file to db
+    folder := &Folder{Name: user.FolderName, RootFolderPath: a.RootFolderPath}
+    folder.genPath()
+    folderFile := &FolderFile{FileNumber: id, Folder: folder}
+    folderFile.Initialize()
+
+    danfe, errDanfe := getDanfe(folderFile.Path)
+    log.Println("danfe: %v, err: %v\n", danfe, errDanfe)
 }
 
 func (a *App) GetDanfes(w http.ResponseWriter, r *http.Request) {
