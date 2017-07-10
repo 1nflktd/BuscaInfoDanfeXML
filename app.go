@@ -54,11 +54,6 @@ func (a *App) Run(addr string) {
     log.Fatal(http.ListenAndServe(addr, sessionManager(a.Router)))
 }
 
-func sessionError(w http.ResponseWriter, r *http.Request, err error) {
-	log.Println(err.Error())
-	respondWithError(w, http.StatusInternalServerError, "Sorry the application encountered an error")
-}
-
 func (a *App) initializeRoutes() {
     a.Router.HandleFunc("/authenticate", a.Authenticate).Methods("GET")
     a.Router.HandleFunc("/file", a.PostFile).Methods("POST")
@@ -86,6 +81,13 @@ func (a *App) Authenticate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) PostFile(w http.ResponseWriter, r *http.Request) {
+    // check if user authenticated and get user
+    user, errAuth := getUserRequest(r)
+    if errAuth != nil {
+        log.Println("postFile, errAuth: " + errAuth.Error())
+        respondWithError(w, http.StatusForbidden,  "User not authenticated")
+    }
+
     file, header, errFormFile := r.FormFile("file")
     if errFormFile != nil {
     	log.Println("postFile, errFormFile: " + errFormFile.Error())
@@ -114,8 +116,19 @@ func (a *App) PostFile(w http.ResponseWriter, r *http.Request) {
 
     errRemove := zipFile.remove()
     if errRemove != nil {
-    	log.Println("postFile, errUnzip: " + errRemove.Error())
+    	log.Println("postFile, errRemove: " + errRemove.Error())
         respondWithError(w, http.StatusInternalServerError, "Error removing file")
+        return
+    }
+
+    newUser := &User{ID: user.ID, Folder: folder.Name}
+
+    a.DB.Update(newUser)
+
+    errUpdateReq := updateRequestHandler(r, newUser)
+    if errUpdateReq != nil {
+        log.Println("postFile, errUpdateReq: " + errUpdateReq.Error())
+        respondWithError(w, http.StatusInternalServerError, "Session error")
         return
     }
 
@@ -123,6 +136,12 @@ func (a *App) PostFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) ImportFile(w http.ResponseWriter, r *http.Request) {
+    user, errAuth := getUserRequest(r)
+    if errAuth != nil {
+        log.Println("postFile, errAuth: " + errAuth.Error())
+        respondWithError(w, http.StatusForbidden,  "User not authenticated")
+    }
+
 	vars := mux.Vars(r)
 	_, err := strconv.Atoi(vars["id"])
 	if err != nil {
@@ -168,4 +187,33 @@ func (a *App) GetDanfes(w http.ResponseWriter, r *http.Request) {
     }
 
     respondWithJSON(w, http.StatusOK, danfes)
+}
+
+func sessionError(w http.ResponseWriter, r *http.Request, err error) {
+    log.Println(err.Error())
+    respondWithError(w, http.StatusInternalServerError, "Sorry the application encountered an error")
+}
+
+func updateRequestHandler(r *http.Request, user *User) error {
+    // update session token
+    err := session.RegenerateToken(r)
+    if err != nil {
+        log.Println("updateRequestHandler, err 1: " + err.Error())
+        return err
+    }
+
+    // update user
+    err = session.PutObject(r, "user", user)
+    if err != nil {
+        log.Println("updateRequestHandler, err 2: " + err.Error())
+        return err
+    }    
+
+    return nil
+}
+
+func getUserRequest(r *http.Request) (*User, error) {
+    user := &User{}
+    err := session.GetObject(r, "user", user)
+    return user, err
 }
