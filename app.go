@@ -21,7 +21,7 @@ type User struct {
 type App struct {
     Router *mux.Router
     DB *storm.DB
-    RootFolderPath string    
+    RootFolderPath string
 }
 
 func (a *App) Initialize(rootFolderPath string, dbName string) {
@@ -41,7 +41,7 @@ func (a *App) Close() {
 
 func (a *App) Run(addr string) {
 	gob.Register(User{})
-	
+
 	// initialize storage engine
 	engine := memstore.New(0)
 
@@ -69,14 +69,14 @@ func (a *App) Authenticate(w http.ResponseWriter, r *http.Request) {
         log.Println(err.Error())
         respondWithError(w, http.StatusInternalServerError, "Sorry the application encountered an error")
     }
-    
+
     // save user to session
     err := session.PutObject(r, "user", &user)
     if err != nil {
         log.Println(err.Error())
         respondWithError(w, http.StatusInternalServerError, "Sorry the application encountered an error")
     }
-    
+
     respondWithJSON(w, http.StatusOK, nil);
 }
 
@@ -143,7 +143,7 @@ func (a *App) ImportFile(w http.ResponseWriter, r *http.Request) {
     }
 
 	vars := mux.Vars(r)
-	_, err := strconv.Atoi(vars["id"])
+	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		log.Println("importFile: " + err.Error())
         respondWithError(w, http.StatusBadRequest, "Invalid parameter")
@@ -179,7 +179,7 @@ func (a *App) GetDanfes(w http.ResponseWriter, r *http.Request) {
         respondWithError(w, http.StatusNotFound, "Folder not found")
         return
 	}
-	
+
     danfes, err := getDanfes(folderPath, filter)
     if err != nil {
         respondWithError(w, http.StatusInternalServerError, "Error getting danfes: " + err.Error())
@@ -207,7 +207,7 @@ func updateRequestHandler(r *http.Request, user *User) error {
     if err != nil {
         log.Println("updateRequestHandler, err 2: " + err.Error())
         return err
-    }    
+    }
 
     return nil
 }

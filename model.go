@@ -12,7 +12,7 @@ type Danfe struct {
 	//XMLName xml.Name `xml:"nfeProc"`
 	DataHoraEmissao time.Time `xml:"NFe>infNFe>ide>dhEmi" json:"dataHoraEmissao"`
 	NomeDestinatario string `xml:"NFe>infNFe>dest>xNome" json:"nomeDestinatario"`
-	ChaveNFe string `xml:"protNFe>infProt>chNFe" json:"chaveNFe"` 
+	ChaveNFe string `xml:"protNFe>infProt>chNFe" json:"chaveNFe"`
 }
 
 func getDanfes(folder string, filters map[string]string) ([]Danfe, error) {

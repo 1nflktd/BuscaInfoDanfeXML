@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
     defer a.Close()
 
     gob.Register(User{})
-    
+
     // initialize storage engine
     testEngine = memstore.New(0)
 
@@ -138,7 +138,7 @@ func TestPostFile(t *testing.T) {
     w := multipart.NewWriter(&buf)
     f, err := os.Open(file)
     if err != nil {
-        t.Errorf("Error opening file: %v\n", err.Error()) 
+        t.Errorf("Error opening file: %v\n", err.Error())
     }
     defer f.Close()
 
@@ -148,7 +148,7 @@ func TestPostFile(t *testing.T) {
     }
 
     if _, err = io.Copy(fw, f); err != nil {
-        t.Errorf("Error copying file: %v\n", err.Error()) 
+        t.Errorf("Error copying file: %v\n", err.Error())
     }
     w.Close()
 

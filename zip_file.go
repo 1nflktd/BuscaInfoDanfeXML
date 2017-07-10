@@ -15,7 +15,7 @@ type ZipFile struct {
 }
 
 func (z *ZipFile) Initialize() {
-    z.Path = filepath.Join(z.Folder.Path, z.Name)    
+    z.Path = filepath.Join(z.Folder.Path, z.Name)
 }
 
 func (z *ZipFile) remove() error {
