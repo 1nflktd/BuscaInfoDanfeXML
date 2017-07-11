@@ -37,4 +37,3 @@ func (f *Folder) upload(multiPartFile multipart.File, filename string) error {
 
     return nil
 }
-

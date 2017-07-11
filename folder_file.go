@@ -30,4 +30,3 @@ func (f *FolderFile) getDecodedName() ([]byte, error) {
 func (f *FolderFile) rename(path string) error {
     return os.Rename(path, f.Path)
 }
-

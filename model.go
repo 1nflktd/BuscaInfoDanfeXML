@@ -5,14 +5,19 @@ import (
 	"path/filepath"
 	"time"
 	"os"
-//	"errors"
 )
 
+type User struct {
+    ID int `storm:"increment" json:"id"`
+	FolderName string `storm:"unique" json:"folderName"`
+}
+
 type Danfe struct {
-	//XMLName xml.Name `xml:"nfeProc"`
+	ID int `storm:"increment" json:"id"`
+	UserID int `storm:"index" json:"userId"`
 	DataHoraEmissao time.Time `xml:"NFe>infNFe>ide>dhEmi" json:"dataHoraEmissao"`
 	NomeDestinatario string `xml:"NFe>infNFe>dest>xNome" json:"nomeDestinatario"`
-	ChaveNFe string `xml:"protNFe>infProt>chNFe" json:"chaveNFe"`
+	ChaveNFe string `storm:"unique" xml:"protNFe>infProt>chNFe" json:"chaveNFe"`
 }
 
 func getDanfes(folder string, filters map[string]string) ([]Danfe, error) {
@@ -47,16 +52,16 @@ func getDanfes(folder string, filters map[string]string) ([]Danfe, error) {
 	return danfes, nil
 }
 
-func getDanfe(path string) (*Danfe, error) {
+func getDanfe(path string) (Danfe, error) {
 	xmlDanfe, err := getFile(path)
 	if err != nil {
-		return nil, err
+		return Danfe{}, err
 	}
 
-	danfe := &Danfe{}
-	err = xml.Unmarshal(xmlDanfe, danfe)
+	danfe := Danfe{}
+	err = xml.Unmarshal(xmlDanfe, &danfe)
 	if err != nil {
-		return nil, err
+		return Danfe{}, err
 	}
 
 	return danfe, nil

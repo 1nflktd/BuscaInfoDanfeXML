@@ -13,11 +13,6 @@ import (
     "github.com/asdine/storm"
 )
 
-type User struct {
-    ID int `storm:"increment"`
-	FolderName string `storm:"unique"`
-}
-
 type App struct {
     Router *mux.Router
     DB *storm.DB
@@ -138,14 +133,14 @@ func (a *App) PostFile(w http.ResponseWriter, r *http.Request) {
 func (a *App) ImportFile(w http.ResponseWriter, r *http.Request) {
     user, errAuth := getUserRequest(r)
     if errAuth != nil {
-        log.Println("postFile, errAuth: " + errAuth.Error())
+        log.Println("importFile, errAuth: " + errAuth.Error())
         respondWithError(w, http.StatusForbidden,  "User not authenticated")
     }
 
 	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
-	if err != nil {
-		log.Println("importFile: " + err.Error())
+	id, errConv := strconv.Atoi(vars["id"])
+	if errConv != nil {
+		log.Println("importFile, errConv: " + errConv.Error())
         respondWithError(w, http.StatusBadRequest, "Invalid parameter")
         return
 	}
@@ -155,9 +150,21 @@ func (a *App) ImportFile(w http.ResponseWriter, r *http.Request) {
     folder.genPath()
     folderFile := &FolderFile{FileNumber: id, Folder: folder}
     folderFile.Initialize()
-
     danfe, errDanfe := getDanfe(folderFile.Path)
-    log.Println("danfe: %v, err: %v\n", danfe, errDanfe)
+    if errDanfe != nil {
+        log.Println("importFile, errDanfe: " + errDanfe.Error())
+        respondWithError(w, http.StatusBadRequest, "Invalid danfe file")
+        return
+    }
+
+    danfe.UserID = user.ID
+    if errSave := a.DB.Save(&danfe); errSave != nil {
+        log.Println("importFile, errSave: " + errSave.Error())
+        respondWithError(w, http.StatusInternalServerError, "Sorry the application encountered an error")
+        return
+    }
+
+    respondWithJSON(w, http.StatusOK, nil)
 }
 
 func (a *App) GetDanfes(w http.ResponseWriter, r *http.Request) {
