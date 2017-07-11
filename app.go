@@ -3,7 +3,6 @@ package main
 import (
     "log"
     "net/http"
-    "path/filepath"
     "strconv"
     "encoding/gob"
 
@@ -53,7 +52,7 @@ func (a *App) initializeRoutes() {
     a.Router.HandleFunc("/authenticate", a.Authenticate).Methods("GET")
     a.Router.HandleFunc("/file", a.PostFile).Methods("POST")
     a.Router.HandleFunc("/import/{id:[0-9]+}", a.ImportFile).Methods("GET")
-    a.Router.HandleFunc("/danfes/{folder}", a.GetDanfes).Methods("GET")
+    a.Router.HandleFunc("/danfes", a.GetDanfes).Methods("GET")
 }
 
 func (a *App) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -62,14 +61,14 @@ func (a *App) Authenticate(w http.ResponseWriter, r *http.Request) {
     // save user to database
     if err := a.DB.Save(&user); err != nil {
         log.Println(err.Error())
-        respondWithError(w, http.StatusInternalServerError, "Sorry the application encountered an error")
+        error500(w)
     }
 
     // save user to session
     err := session.PutObject(r, "user", &user)
     if err != nil {
         log.Println(err.Error())
-        respondWithError(w, http.StatusInternalServerError, "Sorry the application encountered an error")
+        error500(w)
     }
 
     respondWithJSON(w, http.StatusOK, nil);
@@ -135,6 +134,7 @@ func (a *App) ImportFile(w http.ResponseWriter, r *http.Request) {
     if errAuth != nil {
         log.Println("importFile, errAuth: " + errAuth.Error())
         respondWithError(w, http.StatusForbidden,  "User not authenticated")
+        return
     }
 
 	vars := mux.Vars(r)
@@ -160,7 +160,7 @@ func (a *App) ImportFile(w http.ResponseWriter, r *http.Request) {
     danfe.UserID = user.ID
     if errSave := a.DB.Save(&danfe); errSave != nil {
         log.Println("importFile, errSave: " + errSave.Error())
-        respondWithError(w, http.StatusInternalServerError, "Sorry the application encountered an error")
+        error500(w)
         return
     }
 
@@ -168,16 +168,18 @@ func (a *App) ImportFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) GetDanfes(w http.ResponseWriter, r *http.Request) {
-	// filter will be an array, ie. nome=produto 1&cfop=x505
-	vars := mux.Vars(r)
-	folder := vars["folder"]
-	if folder == "" {
-        respondWithError(w, http.StatusBadRequest, "Folder not found in request.")
+    user, errAuth := getUserRequest(r)
+    if errAuth != nil {
+        log.Println("importFile, errAuth: " + errAuth.Error())
+        respondWithError(w, http.StatusForbidden,  "User not authenticated")
         return
-	}
+    }
 
-	if err := r.ParseForm(); err != nil {
-        respondWithError(w, http.StatusInternalServerError, "Error parsing form: " + err.Error())
+	// filter will be an array, ie. nome=produto 1&cfop=x505
+	/*
+    if errParse := r.ParseForm(); errParse != nil {
+        log.Println("getDanfes, errParse: " + errParse.Error())
+        error500(w)
         return
 	}
 
@@ -185,18 +187,12 @@ func (a *App) GetDanfes(w http.ResponseWriter, r *http.Request) {
 	for key, _ := range r.Form {
 		filter[string(key)] = r.Form.Get(key)
 	}
+    */
 
-	folderPath := filepath.Join(a.RootFolderPath, folder)
-
-	isDir, err := isDirectory(folder)
-	if err != nil || !isDir {
-        respondWithError(w, http.StatusNotFound, "Folder not found")
-        return
-	}
-
-    danfes, err := getDanfes(folderPath, filter)
-    if err != nil {
-        respondWithError(w, http.StatusInternalServerError, "Error getting danfes: " + err.Error())
+    var danfes []Danfe
+    if errFind := a.DB.Find("UserID", user.ID, &danfes); errFind != nil {
+        log.Println("getDanfes, errFind: " + errFind.Error())
+        error500(w)
         return
     }
 
@@ -205,6 +201,10 @@ func (a *App) GetDanfes(w http.ResponseWriter, r *http.Request) {
 
 func sessionError(w http.ResponseWriter, r *http.Request, err error) {
     log.Println(err.Error())
+    error500(w)
+}
+
+func error500(w http.ResponseWriter) {
     respondWithError(w, http.StatusInternalServerError, "Sorry the application encountered an error")
 }
 
